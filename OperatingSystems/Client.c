@@ -6,8 +6,22 @@
 #include <sys/types.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <time.h>
 
 int main(int argc, char* argv[]){
+	int fd, fd1;
+	fd = open("fifo1", O_WRONLY);
+	if (fd == -1){
+		return 1;
+	}
+	fd1 = open("fifo2", O_RDONLY);
+	if (fd1 == -1){
+		return 1;
+	}
+
+
+
+
 	return 0;
 }
 
