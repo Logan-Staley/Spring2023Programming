@@ -26,11 +26,10 @@ int main()
 //-------------------------------------------------------
 /* Open the FIFO files */
 
+while(counter == 0){
+
     server_to_client_fifo = open(FIFO_NAME_1, O_RDONLY);
     client_to_server_fifo = open(FIFO_NAME_2, O_WRONLY);
-
-
-while(counter == 0){
 //-------------------------------------------------------------
 // sending an integer to the server to be converted to a string
     printf("Enter a number to be converted to a string: ");
@@ -65,7 +64,7 @@ while(counter == 0){
     write(client_to_server_fifo, &inputint,sizeof(inputint));
 //------------------------------------------------------------//
 
-    printf("do you want that value back?(1(yes) or 0(no)) or 2(exit)/null: ");
+    printf("do you want that value back?(1(yes) or 0(no)) or 3(exit)/null: ");
     int recall;
     scanf("%d",&recall);
     write(client_to_server_fifo,&recall,sizeof(recall));
@@ -74,9 +73,9 @@ while(counter == 0){
         printf("your store value was returned: '%d'\n",number);
     }else if(recall == 0){
         printf("The value was not recalled\n");
-    }else if (recall == 2){
+    }else if (recall == 3){
         counter++;
-    }else{counter = 0;}
+    }
 }
     close(server_to_client_fifo);
     close(client_to_server_fifo);

@@ -76,12 +76,10 @@ int main()
     mkfifo(FIFO_NAME_1, 0666);
     mkfifo(FIFO_NAME_2, 0666);
 
-    server_to_client_fifo = open(FIFO_NAME_1, O_WRONLY);
-    client_to_server_fifo = open(FIFO_NAME_2, O_RDONLY);
-
 while(counter ==0){
 /* ---------------------------Open the FIFO files ------------------------------*/
-
+    server_to_client_fifo = open(FIFO_NAME_1, O_WRONLY);
+    client_to_server_fifo = open(FIFO_NAME_2, O_RDONLY);
 
 /* ----------------------Read from the client FIFO----------------------------- */
 // this is the clents input(int) ------------------------
@@ -94,7 +92,7 @@ while(counter ==0){
     char *ConvertNum = num_to_word(number);
     printf("%s\n", ConvertNum);
     write(server_to_client_fifo, ConvertNum, sizeof(ConvertNum));
-    
+    counter++;
 //---------------------------------------------
 
 //We will convert the string sent from the client to an integer
@@ -117,19 +115,16 @@ while(counter ==0){
     store_value(number);
     printf("%d has been stored in a variable\n", number);
  //--------------------------------------------------//   
-    int answer =  read(client_to_server_fifo,&answer,sizeof(answer));;
-
+    int answer;
+    read(client_to_server_fifo,&answer,sizeof(answer));
     if(answer ==1){
     write(server_to_client_fifo,&stored_value,sizeof(stored_value));
     printf("The client requested the stored value back.");
     }else if(answer==0) {
         printf("The client declined the recall question.");
-    }else if (answer == 2){
+    }else if (answer == 3){
         counter++;
-    }else {
-        counter = 0;
     }
-    
     }
 //------------------------------------------------
 /* Remove the FIFO files */
