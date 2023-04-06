@@ -44,6 +44,40 @@ int main() {
         exit(1);
     }
 
+        while (1) {
+        printf("\nOptions:\n");
+        printf("1. Send message\n");
+        printf("2. Receive message\n");
+        printf("3. Quit\n");
+
+        int option;
+        printf("Enter your option: ");
+        scanf("%d", &option);
+
+        if (option == 1) {
+            int type;
+            char data[256];
+            printf("Message Types: 0:int 1:char/string 2: ");
+            printf("Enter message type(): ");
+            scanf("%d", &type);
+            printf("Enter message data: ");
+            getchar(); // Consume newline character
+            fgets(data, sizeof(data), stdin);
+            data[strcspn(data, "\n")] = 0; // Remove newline character
+            send_message(pipe_fd, type, data);
+        } else if (option == 2) {
+            int requested_type;
+            printf("Enter requested message type (negative for types less than or equal to X): ");
+            scanf("%d", &requested_type);
+            receive_message(pipe_fd, requested_type);
+        } else if (option == 3) {
+            break;
+        } else {
+            printf("Invalid option.\n");
+        }
+    }
+
+
     // Example usage:
     // Send a message with type 1 and data "Hello"
     send_message(pipe_fd, 1, "Hello");
