@@ -76,6 +76,8 @@ void store_value(int value)
     stored_value = value;
 }
 
+int processID_counter = 0;
+
 int main()
 {
     int server_to_client_fifo, client_to_server_fifo;
@@ -84,12 +86,24 @@ int main()
     int number;
     int counter = 0;
     int choice = 0;
+
+// introducing the ProcessID and Pid to the server program
+    int server_fifo_fd, client_fifo_fd;
+    char server_fifo[] = "server_fifo";
+    char client_fifo[64];
+    int processID;
+    int processID_counter = 0;
+    int client_info[2];
+
+
+    int isQueueCreated = 0;
     char *numbers[] = {"zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"};
     /* Create the FIFO file if it does not exist */
     mkfifo(FIFO_NAME_1, 0666);
     mkfifo(FIFO_NAME_2, 0666);
     server_to_client_fifo = open(FIFO_NAME_1, O_WRONLY);
     client_to_server_fifo = open(FIFO_NAME_2, O_RDONLY);
+
     pid_t pid = getpid();
         char pid_str[16];
         sprintf(pid_str, "%d", pid);
@@ -101,13 +115,24 @@ int main()
         pid_t client_pid = atoi(pid_str_client);
         printf("Client Pid is %d\n", client_pid);
 
+        
+        client_info[0] = client_pid;
+        client_info[1] = client_fifo_fd;
 
+        close(server_to_client_fifo);
+        close(client_to_server_fifo);
     while (counter == 0)
     {
-        /* ---------------------------Open the FIFO files ------------------------------*/
-        server_to_client_fifo = open(FIFO_NAME_1, O_WRONLY);
-        client_to_server_fifo = open(FIFO_NAME_2, O_RDONLY);
+
+        // /* ---------------------------Open the FIFO files ------------------------------*/
+         server_to_client_fifo = open(FIFO_NAME_1, O_WRONLY);
+         client_to_server_fifo = open(FIFO_NAME_2, O_RDONLY);
+
         //------------
+        processID = processID_counter;
+    //    processID_counter++;
+        printf("Process id Counter is  %d\n", processID_counter);
+        
         // get the pid of the server and send it to the client
         read(client_to_server_fifo,&choice,sizeof(choice));
         switch (choice)
@@ -117,15 +142,16 @@ int main()
         // this is the clents input(int) ------------------------
     case 1:
     {
+        
         read(client_to_server_fifo, &number, sizeof(number));
         printf("Received from client: %d\n", number);
 
         //---------------------------------------------------
         // convert the given number to a string and sends it to the client(string)
         char *ConvertNum = num_to_word(number);
-        printf("%s\n", ConvertNum);
+        printf("The Integer Converted to a string is: %s\n", ConvertNum);
         write(server_to_client_fifo, ConvertNum, sizeof(ConvertNum));
-        counter++;
+        processID_counter++;
         break;
     }
         //---------------------------------------------
@@ -142,8 +168,9 @@ int main()
         //---------------------------------------------------
         // convert the given number to a string and sends it to the client(string)
         int Convertstring = string_to_num(buffer);
-        printf("%d\n", Convertstring);
+        printf("the string converted to a number is: %d\n", Convertstring);
         write(server_to_client_fifo, &Convertstring, sizeof(Convertstring));
+        processID_counter++;
         break;
     }
         //---------------------------------------------
@@ -168,11 +195,14 @@ int main()
         {
             printf("The client declined the recall question.");
         }
+        processID_counter++;
         break;
     }
     case 4:
     {
+        processID_counter++;
         choice++;
+        counter++;
         break;
     }
         }

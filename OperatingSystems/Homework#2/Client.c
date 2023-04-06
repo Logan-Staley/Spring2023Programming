@@ -27,20 +27,18 @@ int main()
 //-------------------------------------------------------
 /* Open the FIFO files */
 
-while(counter == 0){
-
+//get the PID of the client and send it to the server
     server_to_client_fifo = open(FIFO_NAME_1, O_RDONLY);
     client_to_server_fifo = open(FIFO_NAME_2, O_WRONLY);
 
 
-//-------------------------------------------
-//get the PID of the client and send it to the server
-
 char pid_str[16];
 pid_t pid = getpid();
+int client_id = getpid();
 sprintf(pid_str, "%d",pid);
 printf("client PID is %d\n",pid);
-write(client_to_server_fifo, pid_str,sizeof(pid_str));
+dprintf(client_to_server_fifo, "%d\n", client_id);
+//write(client_to_server_fifo, pid_str,sizeof(pid_str));
 
 
 char pid_str_server[16];
@@ -48,6 +46,16 @@ read(server_to_client_fifo,pid_str_server,sizeof(pid_str_server));
 pid_t server_pid = atoi(pid_str_server);
 printf("Server Pid is %d\n",server_pid);
 //-----------------------
+
+close(server_to_client_fifo);
+close(client_to_server_fifo);
+while(counter == 0){
+
+
+    server_to_client_fifo = open(FIFO_NAME_1, O_RDONLY);
+    client_to_server_fifo = open(FIFO_NAME_2, O_WRONLY);
+
+//-------------------------------------------
 
 int choice;
         printf("Choose a method to use:\n");
@@ -63,6 +71,7 @@ switch(choice){
 //-------------------------------------------------------------
 // sending an integer to the server to be converted to a string
     case 1:
+        
         printf("Enter a number to be converted to a string: ");
         scanf("%d", &number);
         sprintf(buffer, "%d", number);
