@@ -120,7 +120,7 @@ int main() {
 
             if (found_message.type != -1) {
                 printf("Client %d received a message (type: %d, data: %s)\n", client_pid, found_message.type, found_message.data);
-            } else
+            } else {
                 printf("Client %d requested type %d, but no message was available.\n", client_pid, requested_type);
             }
 
@@ -128,7 +128,7 @@ int main() {
             snprintf(reply, sizeof(reply), "%d %d %s", found_message.type, found_message.length, found_message.data);
             write(pipe_fd, reply, strlen(reply));
         }
-    
+    }
 
     close(pipe_fd);
     delete_queue(queue);
