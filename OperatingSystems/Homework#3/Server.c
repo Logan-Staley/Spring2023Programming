@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdbool.h>
+#include <time.h> 
 
 typedef struct {
     int type;
@@ -79,7 +80,7 @@ const int RECEIVE_MSG = 2;
 int main() {
     const char* pipe_name = "server_pipe";
     mkfifo(pipe_name, 0666);
-    int pipe_fd = open(pipe_name, O_RDWR);
+    int pipe_fd = open(pipe_name, O_RDWR | O_NONBLOCK);
 
     Queue* queue = create_queue();
 
@@ -95,6 +96,9 @@ int main() {
             sscanf(buffer, "%*d %*d %d %d %[^\n]", &msg.type, &msg.length, msg.data);
             enqueue(queue, msg);
             printf("Client %d sent a message (type: %d, data: %s)\n", client_pid, msg.type, msg.data);
+            const char* ack_msg = "acknoledged";
+            write(pipe_fd,ack_msg,strlen(ack_msg));
+
         } else if (syscall_num == RECEIVE_MSG) {
             int requested_type;
             sscanf(buffer, "%*d %*d %d", &requested_type);
@@ -126,8 +130,17 @@ int main() {
 
             char reply[1024] = {0};
             snprintf(reply, sizeof(reply), "%d %d %s", found_message.type, found_message.length, found_message.data);
-            write(pipe_fd, reply, strlen(reply));
+            int reply_pipe_fd = open(pipe_name, O_WRONLY); // Open the pipe again in write mode
+            write(reply_pipe_fd, reply, strlen(reply));
+            close(reply_pipe_fd); // Close the write pipe after sending the reply
+        
+        
+
         }
+        struct timespec sleep_time;
+        sleep_time.tv_sec = 0;
+        sleep_time.tv_nsec = 100 * 1000 * 1000; // 100 ms
+        nanosleep(&sleep_time, NULL);
     }
 
     close(pipe_fd);
