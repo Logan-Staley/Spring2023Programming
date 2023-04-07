@@ -6,7 +6,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <stdbool.h>
-#include <time.h> 
 
 typedef struct {
     int type;
@@ -78,74 +77,76 @@ const int SEND_MSG = 1;
 const int RECEIVE_MSG = 2;
 
 int main() {
-    const char* pipe_name = "server_pipe";
-    mkfifo(pipe_name, 0666);
-    int pipe_fd = open(pipe_name, O_RDWR | O_NONBLOCK);
+    const char* server_pipe_name = "server_pipe";
+    mkfifo(server_pipe_name, 0666);
+    int server_pipe_fd = open(server_pipe_name, O_RDONLY);
 
     Queue* queue = create_queue();
 
     while (1) {
         char buffer[1024] = {0};
-        read(pipe_fd, buffer, sizeof(buffer));
+        read(server_pipe_fd, buffer, sizeof(buffer));
 
         int client_pid, syscall_num;
         sscanf(buffer, "%d %d", &client_pid, &syscall_num);
 
-        if (syscall_num == SEND_MSG) {
-            Message msg;
-            sscanf(buffer, "%*d %*d %d %d %[^\n]", &msg.type, &msg.length, msg.data);
-            enqueue(queue, msg);
-            printf("Client %d sent a message (type: %d, data: %s)\n", client_pid, msg.type, msg.data);
-            const char* ack_msg = "acknoledged";
-            write(pipe_fd,ack_msg,strlen(ack_msg));
+        if (syscall_num == SEND_MSG || syscall_num == RECEIVE_MSG) {
+            char send_pipe_name[256];
+            char recv_pipe_name[256];
+            snprintf(send_pipe_name, sizeof(send_pipe_name), "send_pipe_%d", client_pid);
+            snprintf(recv_pipe_name, sizeof(recv_pipe_name), "recv_pipe_%d", client_pid);
 
-        } else if (syscall_num == RECEIVE_MSG) {
-            int requested_type;
-            sscanf(buffer, "%*d %*d %d", &requested_type);
+            int send_pipe_fd = open(send_pipe_name, O_WRONLY);
+            int recv_pipe_fd = open(recv_pipe_name, O_RDONLY | O_NONBLOCK);
 
             Message found_message = {-1, 0, ""};
-            Queue* temp_queue = create_queue();
+            if (syscall_num == SEND_MSG) {
+                Message msg;
+                sscanf(buffer, "%*d %*d %d %d %[^\n]", &msg.type, &msg.length, msg.data);
+                enqueue(queue, msg);
+                printf("Client %d sent a message (type: %d, data: %s)\n", client_pid, msg.type, msg.data);
+            } else if (syscall_num == RECEIVE_MSG) {
+                int requested_type;
+                sscanf(buffer, "%*d %*d %d", &requested_type);
 
-            while (!is_empty(queue)) {
-                Message msg = dequeue(queue);
-                if (msg.type == requested_type || (requested_type < 0 && msg.type <= -requested_type)) {
-                    found_message = msg;
-                    break;
-                } else {
-                    enqueue(temp_queue, msg);
+                Queue* temp_queue = create_queue();
+
+                while (!is_empty(queue)) {
+                    Message msg = dequeue(queue);
+                    if (msg.type == requested_type || (requested_type < 0 && msg.type <= -requested_type)) {
+                        found_message = msg;
+                        break;
+                    } else {
+                        enqueue(temp_queue, msg);
+                    }
                 }
-            }
 
-            while (!is_empty(temp_queue)) {
-                enqueue(queue, dequeue(temp_queue));
-            }
+                while (!is_empty(temp_queue)) {
+                    enqueue(queue, dequeue(temp_queue));
+                }
 
-            delete_queue(temp_queue);
+                delete_queue(temp_queue);
 
-            if (found_message.type != -1) {
-                printf("Client %d received a message (type: %d, data: %s)\n", client_pid, found_message.type, found_message.data);
-            } else {
-                printf("Client %d requested type %d, but no message was available.\n", client_pid, requested_type);
+                if (found_message.type != -1) {
+                    printf("Client %d received a message (type: %d, data: %s)\n", client_pid, found_message.type, found_message.data);
+                } else {
+                    printf("Client %d requested type %d, but no message was available.\n", client_pid, requested_type);
+                }
             }
 
             char reply[1024] = {0};
             snprintf(reply, sizeof(reply), "%d %d %s", found_message.type, found_message.length, found_message.data);
-            int reply_pipe_fd = open(pipe_name, O_WRONLY); // Open the pipe again in write mode
-            write(reply_pipe_fd, reply, strlen(reply));
-            close(reply_pipe_fd); // Close the write pipe after sending the reply
-        
-        
 
+            write(send_pipe_fd, reply, strlen(reply));
+
+            close(send_pipe_fd);
+            close(recv_pipe_fd);
         }
-        struct timespec sleep_time;
-        sleep_time.tv_sec = 0;
-        sleep_time.tv_nsec = 100 * 1000 * 1000; // 100 ms
-        nanosleep(&sleep_time, NULL);
     }
 
-    close(pipe_fd);
+    close(server_pipe_fd);
     delete_queue(queue);
-    unlink(pipe_name);
+    unlink(server_pipe_name);
 
     return 0;
 }

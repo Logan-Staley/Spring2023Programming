@@ -36,14 +36,14 @@ void receive_message(int pipe_fd, int requested_type) {
 
 int main() {
     const char *pipe_name = "server_pipe";
-    int pipe_fd = open(pipe_name, O_RDONLY | O_NONBLOCK);
+    int pipe_fd = open(pipe_name, O_RDWR);
 
     if (pipe_fd < 0) {
         perror("Error opening pipe");
         exit(1);
     }
 
-        while (1) {
+    while (1) {
         printf("\nOptions:\n");
         printf("1. Send message\n");
         printf("2. Receive message\n");
@@ -64,7 +64,7 @@ int main() {
             getchar(); // Consume newline character
             fgets(data, sizeof(data), stdin);
             data[strcspn(data, "\n")] = 0; // Remove newline character
-            send_message(pipe_fd, type,data);
+            send_message(pipe_fd, type, data);
         } else if (option == 2) {
             int requested_type;
             printf("Enter requested message type (negative for types less than or equal to X): ");
@@ -79,15 +79,15 @@ int main() {
         }
     }
 
-
-    // Example usage:
-    // Send a message with type 1 and data "Hello"
-    //send_message(pipe_fd, 1, "Hello");
-
-    // Receive a message with type 1
-    //receive_message(pipe_fd, 1);
-
     close(pipe_fd);
 
     return 0;
 }
+
+
+
+
+
+
+
+//instead of using a single pipe to connect the server and client implement the client to have a sending and receiving pipe for the server using this code
