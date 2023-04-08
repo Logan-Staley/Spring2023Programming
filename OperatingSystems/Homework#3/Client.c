@@ -43,16 +43,11 @@ void receive_message(int pipe_fd, int client_pipe_fd, int requested_type)
     }
 }
 
-int main(int argc, char *argv[]) {
-    if (argc < 2) {
-        printf("Usage: %s <client_number>\n", argv[0]);
-        exit(1);
-    }
-    int client_number = atoi(argv[1]);
+int main()
+{
     const char *pipe_name = "server_pipe";
-    
     int pipe_fd = open(pipe_name, O_WRONLY);
-    printf("Client %d started\n", client_number);
+
     if (pipe_fd < 0)
     {
         perror("Error opening pipe");
