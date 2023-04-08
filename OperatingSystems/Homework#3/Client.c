@@ -9,41 +9,59 @@
 const int SEND_MSG = 1;
 const int RECEIVE_MSG = 2;
 
-void send_message(int pipe_fd, int type, const char *data) {
+void send_message(int pipe_fd, int type, const char *data)
+{
     int length = strlen(data);
     char buffer[1024] = {0};
     snprintf(buffer, sizeof(buffer), "%d %d %d %d %s", getpid(), SEND_MSG, type, length, data);
     write(pipe_fd, buffer, strlen(buffer));
 }
 
-void receive_message(int pipe_fd, int requested_type) {
+void receive_message(int pipe_fd, int client_pipe_fd, int requested_type)
+{
     char buffer[1024] = {0};
     snprintf(buffer, sizeof(buffer), "%d %d %d", getpid(), RECEIVE_MSG, requested_type);
     write(pipe_fd, buffer, strlen(buffer));
+
     memset(buffer, 0, sizeof(buffer));
-    read(pipe_fd, buffer, sizeof(buffer));
+    int flags = fcntl(client_pipe_fd, F_GETFL, 0);
+    fcntl(client_pipe_fd, F_SETFL, flags & ~O_NONBLOCK);
+    read(client_pipe_fd, buffer, sizeof(buffer));
+    fcntl(client_pipe_fd, F_SETFL, flags);
 
     int type, length;
     char data[256];
     sscanf(buffer, "%d %d %[^\n]", &type, &length, data);
 
-    if (type != -1) {
-        printf("Client %d received a message (type: %d, data:%s )\n", getpid(), type, data);
-    } else {
+    if (type != -1)
+    {
+        printf("Client %d received a message (type: %d, data: %s)\n", getpid(), type, data);
+    }
+    else
+    {
         printf("Client %d requested type %d, but no message was available.\n", getpid(), requested_type);
     }
 }
 
-int main() {
+int main()
+{
     const char *pipe_name = "server_pipe";
-    int pipe_fd = open(pipe_name, O_RDWR);
+    int pipe_fd = open(pipe_name, O_WRONLY);
 
-    if (pipe_fd < 0) {
+    if (pipe_fd < 0)
+    {
         perror("Error opening pipe");
         exit(1);
     }
 
-    while (1) {
+    // Create unique pipe name for each client
+    char client_pipe_name[256];
+    snprintf(client_pipe_name, sizeof(client_pipe_name), "client_pipe_%d", getpid());
+    mkfifo(client_pipe_name, 0666);
+    int client_pipe_fd = open(client_pipe_name, O_RDONLY | O_NONBLOCK);
+
+    while (1)
+    {
         printf("\nOptions:\n");
         printf("1. Send message\n");
         printf("2. Receive message\n");
@@ -53,11 +71,11 @@ int main() {
         printf("Enter your option: ");
         scanf("%d", &option);
 
-        if (option == 1) {
+        if (option == 1)
+        {
             int type;
             char data[256];
-            int length;
-            printf("Message Types: Type 1 = integer|Type 2 = string \n");
+            printf("Message Types: 0:int 1:char/string 2: ");
             printf("Enter message type(): ");
             scanf("%d", &type);
             printf("Enter message data: ");
@@ -65,29 +83,34 @@ int main() {
             fgets(data, sizeof(data), stdin);
             data[strcspn(data, "\n")] = 0; // Remove newline character
             send_message(pipe_fd, type, data);
-        } else if (option == 2) {
+        }
+        else if (option == 2)
+        {
             int requested_type;
             printf("Enter requested message type (negative for types less than or equal to X): ");
             scanf("%d", &requested_type);
-            printf("This was the message retreived: ");
-
-            receive_message(pipe_fd, requested_type);
-        } else if (option == 3) {
+            receive_message(pipe_fd, client_pipe_fd, requested_type);
+        }
+        else if (option == 3)
+        {
             break;
-        } else {
+        }
+        else
+        {
             printf("Invalid option.\n");
         }
     }
 
+    // Example usage:
+    // Send a message with type 1 and data "Hello"
+    send_message(pipe_fd, 1, "Hello");
+
+    // Receive a message with type 1
+receive_message(pipe_fd, client_pipe_fd, 1);
+
     close(pipe_fd);
+    close(client_pipe_fd);
+    unlink(client_pipe_name);
 
     return 0;
 }
-
-
-
-
-
-
-
-//instead of using a single pipe to connect the server and client implement the client to have a sending and receiving pipe for the server using this code

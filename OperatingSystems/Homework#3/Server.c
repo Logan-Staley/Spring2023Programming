@@ -77,76 +77,70 @@ const int SEND_MSG = 1;
 const int RECEIVE_MSG = 2;
 
 int main() {
-    const char* server_pipe_name = "server_pipe";
-    mkfifo(server_pipe_name, 0666);
-    int server_pipe_fd = open(server_pipe_name, O_RDONLY);
+    const char* pipe_name = "server_pipe";
+    mkfifo(pipe_name, 0666);
+    int pipe_fd = open(pipe_name, O_RDWR);
 
     Queue* queue = create_queue();
 
     while (1) {
         char buffer[1024] = {0};
-        read(server_pipe_fd, buffer, sizeof(buffer));
+        read(pipe_fd, buffer, sizeof(buffer));
 
         int client_pid, syscall_num;
         sscanf(buffer, "%d %d", &client_pid, &syscall_num);
 
-        if (syscall_num == SEND_MSG || syscall_num == RECEIVE_MSG) {
-            char send_pipe_name[256];
-            char recv_pipe_name[256];
-            snprintf(send_pipe_name, sizeof(send_pipe_name), "send_pipe_%d", client_pid);
-            snprintf(recv_pipe_name, sizeof(recv_pipe_name), "recv_pipe_%d", client_pid);
 
-            int send_pipe_fd = open(send_pipe_name, O_WRONLY);
-            int recv_pipe_fd = open(recv_pipe_name, O_RDONLY | O_NONBLOCK);
+        // Create unique pipe name for each client
+        char client_pipe_name[256];
+        snprintf(client_pipe_name, sizeof(client_pipe_name), "client_pipe_%d", client_pid);
+        int client_pipe_fd = open(client_pipe_name, O_WRONLY);
+
+
+        if (syscall_num == SEND_MSG) {
+            Message msg;
+            sscanf(buffer, "%*d %*d %d %d %[^\n]", &msg.type, &msg.length, msg.data);
+            enqueue(queue, msg);
+            printf("Client %d sent a message (type: %d, data: %s)\n", client_pid, msg.type, msg.data);
+        } else if (syscall_num == RECEIVE_MSG) {
+            int requested_type;
+            sscanf(buffer, "%*d %*d %d", &requested_type);
 
             Message found_message = {-1, 0, ""};
-            if (syscall_num == SEND_MSG) {
-                Message msg;
-                sscanf(buffer, "%*d %*d %d %d %[^\n]", &msg.type, &msg.length, msg.data);
-                enqueue(queue, msg);
-                printf("Client %d sent a message (type: %d, data: %s)\n", client_pid, msg.type, msg.data);
-            } else if (syscall_num == RECEIVE_MSG) {
-                int requested_type;
-                sscanf(buffer, "%*d %*d %d", &requested_type);
+            Queue* temp_queue = create_queue();
 
-                Queue* temp_queue = create_queue();
-
-                while (!is_empty(queue)) {
-                    Message msg = dequeue(queue);
-                    if (msg.type == requested_type || (requested_type < 0 && msg.type <= -requested_type)) {
-                        found_message = msg;
-                        break;
-                    } else {
-                        enqueue(temp_queue, msg);
-                    }
-                }
-
-                while (!is_empty(temp_queue)) {
-                    enqueue(queue, dequeue(temp_queue));
-                }
-
-                delete_queue(temp_queue);
-
-                if (found_message.type != -1) {
-                    printf("Client %d received a message (type: %d, data: %s)\n", client_pid, found_message.type, found_message.data);
+            while (!is_empty(queue)) {
+                Message msg = dequeue(queue);
+                if (msg.type == requested_type || (requested_type < 0 && msg.type <= -requested_type)) {
+                    found_message = msg;
+                    break;
                 } else {
-                    printf("Client %d requested type %d, but no message was available.\n", client_pid, requested_type);
+                    enqueue(temp_queue, msg);
                 }
+            }
+
+            while (!is_empty(temp_queue)) {
+                enqueue(queue, dequeue(temp_queue));
+            }
+
+            delete_queue(temp_queue);
+
+            if (found_message.type != -1) {
+                printf("Client %d received a message (type: %d, data: %s)\n", client_pid, found_message.type, found_message.data);
+            } else {
+                printf("Client %d requested type %d, but no message was available.\n", client_pid, requested_type);
             }
 
             char reply[1024] = {0};
             snprintf(reply, sizeof(reply), "%d %d %s", found_message.type, found_message.length, found_message.data);
-
-            write(send_pipe_fd, reply, strlen(reply));
-
-            close(send_pipe_fd);
-            close(recv_pipe_fd);
+            write(client_pipe_fd, reply, strlen(reply));
+        close(client_pipe_fd);
         }
     }
 
-    close(server_pipe_fd);
+    close(pipe_fd);
     delete_queue(queue);
-    unlink(server_pipe_name);
+    unlink(pipe_name);
 
     return 0;
 }
