@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 
+const int CONNECT = 0;
 const int SEND_MSG = 1;
 const int RECEIVE_MSG = 2;
 
@@ -59,7 +60,9 @@ int main()
     snprintf(client_pipe_name, sizeof(client_pipe_name), "client_pipe_%d", getpid());
     mkfifo(client_pipe_name, 0666);
     int client_pipe_fd = open(client_pipe_name, O_RDONLY | O_NONBLOCK);
-
+    char buffer[1024] = {0};
+    snprintf(buffer, sizeof(buffer), "%d %d", getpid(), CONNECT);
+    write(pipe_fd, buffer, strlen(buffer));
     while (1)
     {
         printf("\nOptions:\n");
@@ -100,13 +103,6 @@ int main()
             printf("Invalid option.\n");
         }
     }
-
-    // Example usage:
-    // Send a message with type 1 and data "Hello"
-    send_message(pipe_fd, 1, "Hello");
-
-    // Receive a message with type 1
-receive_message(pipe_fd, client_pipe_fd, 1);
 
     close(pipe_fd);
     close(client_pipe_fd);

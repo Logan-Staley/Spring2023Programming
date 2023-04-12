@@ -10,7 +10,7 @@
 typedef struct {
     int type;
     int length;
-    char data[256];
+    char *data;
 } Message;
 
 typedef struct QueueNode {
@@ -72,15 +72,30 @@ void delete_queue(Queue* queue) {
     }
     free(queue);
 }
+bool is_client_registered(int client_pid, int *client_pids, int num_clients) {
+    for (int i = 0; i < num_clients; i++) {
+        if (client_pids[i] == client_pid) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 
 const int SEND_MSG = 1;
 const int RECEIVE_MSG = 2;
-
+const int MAX_CLIENTS = 5;
 int main() {
+
+
     const char* pipe_name = "server_pipe";
     mkfifo(pipe_name, 0666);
     int pipe_fd = open(pipe_name, O_RDWR);
 
+
+    int client_pids[MAX_CLIENTS];
+    int num_clients = 0;
     Queue* queue = create_queue();
 
     while (1) {
@@ -90,7 +105,10 @@ int main() {
         int client_pid, syscall_num;
         sscanf(buffer, "%d %d", &client_pid, &syscall_num);
 
-
+        if (!is_client_registered(client_pid, client_pids, num_clients)) {
+        client_pids[num_clients++] = client_pid;
+        printf("New client %d connected. Total clients: %d\n", client_pid, num_clients);
+    }
         // Create unique pipe name for each client
         char client_pipe_name[256];
         snprintf(client_pipe_name, sizeof(client_pipe_name), "client_pipe_%d", client_pid);
