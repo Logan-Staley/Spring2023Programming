@@ -78,7 +78,7 @@ int main()
         {
             int type;
             char data[256];
-            printf("Message Types: 0:int 1:char/string 2: ");
+            printf("Message Types: int 1 | char/string 2 \n");
             printf("Enter message type(): ");
             scanf("%d", &type);
             printf("Enter message data: ");
