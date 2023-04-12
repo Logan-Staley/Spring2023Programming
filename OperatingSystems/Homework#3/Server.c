@@ -149,7 +149,7 @@ int main()
 
             Message found_message = {-1, 0, "", 0};
             Queue *temp_queue = create_queue();
-
+            int most_recent_client_pid = -1;
             while (!is_empty(queue))
             {
                 int dequeued_pid;
@@ -159,7 +159,8 @@ int main()
                     if (msg.client_pid == client_pid)
                     {
                         found_message = msg;
-                        break;
+                        most_recent_client_pid = dequeued_pid;
+                        
                     }
                     else
                     {
