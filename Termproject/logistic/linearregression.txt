@@ -1,0 +1,232 @@
+package Termproject.logistic;
+
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
+import java.util.stream.Collectors;
+
+public class Heart_failure_Test {
+
+    public static List<Double> train(List<List<Double>> X, List<Double> y, double learningRate, int numIterations) {
+        int m = X.size();
+        int n = X.get(0).size();
+        List<Double> weights = new ArrayList<>();
+        Random rand = new Random();
+    
+        // Initialize the weights with random values between -0.1 and 0.1
+        for (int i = 0; i < n; i++) {
+            weights.add(-0.1 + rand.nextDouble() * 0.2);
+        }
+    
+        for (int iteration = 0; iteration < numIterations; iteration++) {
+            // Compute the predicted values
+            List<Double> predicted = new ArrayList<>();
+            for (int i = 0; i < m; i++) {
+                double sum = 0.0;
+                for (int j = 0; j < n; j++) {
+                    sum += X.get(i).get(j) * weights.get(j);
+                }
+                predicted.add(sum);
+            }
+    
+            // Compute the error
+            List<Double> error = new ArrayList<>();
+            for (int i = 0; i < m; i++) {
+                error.add(predicted.get(i) - y.get(i));
+            }
+    
+            // Compute the gradient
+            List<Double> gradient = new ArrayList<>();
+            for (int j = 0; j < n; j++) {
+                double sum = 0.0;
+                for (int i = 0; i < m; i++) {
+                    sum += X.get(i).get(j) * error.get(i);
+                }
+                gradient.add(sum / m);
+            }
+    
+            // Update the weights
+            for (int j = 0; j < n; j++) {
+                weights.set(j, weights.get(j) - learningRate * gradient.get(j));
+            }
+    
+            // Compute the cost function
+            double cost = 0.0;
+            for (int i = 0; i < m; i++) {
+                double diff = predicted.get(i) - y.get(i);
+                cost += diff * diff;
+            }
+            cost /= (2.0 * m);
+    
+            // Check if the cost function is below a certain threshold
+            if (cost < 0.0001) {
+                break;
+            }
+        }
+    
+        return weights;
+    }
+
+    
+    public static void unitVectorNormalize(List<List<Double>> X) {
+        int numFeatures = X.get(0).size();
+    
+        // Compute the magnitude of each row
+        List<Double> magnitudes = new ArrayList<>();
+        for (List<Double> row : X) {
+            double sumSquares = 0.0;
+            for (int i = 0; i < numFeatures; i++) {
+                double value = row.get(i);
+                sumSquares += value * value;
+            }
+            double magnitude = Math.sqrt(sumSquares);
+            magnitudes.add(magnitude);
+        }
+    
+        // Normalize each row in X
+        for (int i = 0; i < X.size(); i++) {
+            List<Double> row = X.get(i);
+            double magnitude = magnitudes.get(i);
+            for (int j = 0; j < numFeatures; j++) {
+                double value = row.get(j);
+                double normalized = value / magnitude;
+                X.get(i).set(j, normalized);
+            }
+        }
+    }
+
+    public static boolean isNormalized(List<List<Double>> data) {
+        int numFeatures = data.get(0).size();
+
+        // Check the mean and standard deviation for each feature
+        for (int j = 1; j < numFeatures; j++) {
+            double sum = 0.0;
+            double sumSquares = 0.0;
+            for (int i = 0; i < data.size(); i++) {
+                double value = data.get(i).get(j);
+                sum += value;
+                sumSquares += value * value;
+            }
+            double mean = sum / data.size();
+            double variance = (sumSquares / data.size()) - (mean * mean);
+            double stdDev = Math.sqrt(variance);
+
+            // Check that the mean is close to 0 and the standard deviation is close to 1
+            if (Math.abs(mean) > 0.01 || Math.abs(stdDev - 1.0) > 0.01) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    public static double dotProduct(double[] rowArray, Double[] doubles) {
+        double result = 0.0;
+        for (int i = 0; i < rowArray.length; i++) {
+            result += rowArray.length * doubles.length;
+        }
+        return result;
+    }
+
+    public static double calculateAccuracy(List<Double> predictions, List<Double> actuals) {
+        int numCorrect = 0;
+        for (int i = 0; i < predictions.size(); i++) {
+            double predicted = predictions.get(i);
+            double actual = actuals.get(i);
+            if ((predicted >= 0.5 && actual == 1.0) || (predicted < 0.5 && actual == 0.0)) {
+                numCorrect++;
+            }
+        }
+        return (double) numCorrect / actuals.size();
+    }
+
+    public static void main(String[] args) {
+        String filePath4features = "Termproject/logistic/heart_failure_clinical_records_dataset_cleaned.csv";
+        /// String filePath_age_serum_sodium =
+        /// "heart_failure_clinical_records_dataset_cleaned_serum_sodium.csv";
+        // String filePath_age_serum_creatinine =
+        /// "heart_failure_clinical_records_dataset_cleaned_serum_creatinine.csv";
+        // String filePath_age_ejection_fraction =
+        /// "heart_failure_clinical_records_dataset_cleaned_ejection_fraction.csv";
+        String csvSplitBy = ",";
+        String line = "";
+        System.out.println("Reading CSV file: " + filePath4features);
+        List<List<Double>> X = new ArrayList<>();
+        List<Double> y = new ArrayList<>();
+        double learningRate = 0.001;
+        int numIterations = 10000;
+
+        // variables declared ^^^^^
+
+        try (BufferedReader br = new BufferedReader(new FileReader(filePath4features))) {
+            String headerLine = br.readLine();
+            // System.out.println("Header: " + headerLine);
+            while ((line = br.readLine()) != null) {
+                String[] fields = line.split(csvSplitBy);
+
+                // Convert the fields to doubles and add them to the X list
+                List<Double> row = new ArrayList<>();
+                // Add a bias term of 1.0
+                row.add(1.0); // Add a bias term of 1.0
+                row.add(Double.parseDouble(fields[0])); // Add ejection fraction
+                row.add(Double.parseDouble(fields[1])); // Add serum creatinine
+                row.add(Double.parseDouble(fields[2]));
+                row.add(Double.parseDouble(fields[3]));
+                y.add(Double.parseDouble(fields[4]));
+                X.add(row);
+
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        int numExamples = X.size();
+        int numTrainExamples = (int) (0.8 * numExamples);
+        List<List<Double>> XTrain = X.subList(0, numTrainExamples);
+        List<Double> yTrain = y.subList(0, numTrainExamples);
+        List<List<Double>> XTest = X.subList(numTrainExamples, numExamples);
+        List<Double> yTest = y.subList(numTrainExamples, numExamples);
+
+        // System.out.println("XTrain: " + XTrain);
+
+        // System.out.println("XTest: " + XTest);
+
+        System.out.println("The Code ran");
+
+        unitVectorNormalize(XTrain);
+        unitVectorNormalize(XTest);
+
+        System.out.println("Training the model...");
+        List<Double> weights = train(XTrain, yTrain, learningRate, numIterations);
+        System.out.println("Weights have been trained: " + weights);
+
+        List<Double> predictedTrain = new ArrayList<>();
+        for (List<Double> row : XTrain) {
+            double[] rowArray = row.stream().mapToDouble(Double::doubleValue).toArray();
+            double prediction = dotProduct(rowArray, weights.toArray(new Double[0]));
+            predictedTrain.add(prediction);
+        }
+        double trainAccuracy = calculateAccuracy(predictedTrain, yTrain);
+        System.out.println("Training accuracy: " + trainAccuracy);
+
+        // Evaluate the test data
+        List<Double> predictedTest = new ArrayList<>();
+        for (List<Double> row : XTest) {
+            double[] rowArray = row.stream().mapToDouble(Double::doubleValue).toArray();
+            double prediction = dotProduct(rowArray, weights.toArray(new Double[0]));
+            predictedTest.add(prediction);
+        }
+        double testAccuracy = calculateAccuracy(predictedTest, yTest);
+        System.out.println("Test accuracy: " + testAccuracy);
+
+        if (X.isEmpty()) {
+            System.out.println("No data found in the CSV file.");
+            return;
+        }
+
+    }
+}
