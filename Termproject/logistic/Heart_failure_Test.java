@@ -11,94 +11,82 @@ import java.util.stream.Collectors;
 
 public class Heart_failure_Test {
 
-    public static double[] train(double[][] X, double[] y, double learningRate, int numIterations) {
-        int m = X.length;
-        int n = X[0].length;
-        double[] weights = new double[n];
-        Random rand = new Random();
-
-        // Initialize the weights with random values between -0.1 and 0.1
-        for (int i = 0; i < n; i++) {
-            weights[i] = -0.1 + rand.nextDouble() * 0.2;
-        }
+    public static double[] train(double[][] x, double[] y, double learningRate, int numIterations) {
+        int numRows = x.length;
+        int numFeatures = x[0].length;
+        
+        double[] weights = new double[numFeatures];
+        Arrays.fill(weights, 0.0);
 
         for (int iteration = 0; iteration < numIterations; iteration++) {
-            // Compute the predicted values using the sigmoid function
-            double[] predicted = new double[m];
-            for (int i = 0; i < m; i++) {
-                double sum = 0.0;
-                for (int j = 0; j < n; j++) {
-                    sum += X[i][j] * weights[j];
+            double[] gradient = new double[numFeatures];
+            Arrays.fill(gradient, 0.0);
+
+            for (int i = 0; i < numRows; i++) {
+                double predictedProbability = predictProbability(x[i], weights);
+                for (int j = 0; j < numFeatures; j++) {
+                    gradient[j] += (predictedProbability - y[i]) * x[i][j];
                 }
-                double probability = sigmoid(sum);
-                predicted[i] = probability;
             }
 
-            // Compute the error
-            double[] error = new double[m];
-            for (int i = 0; i < m; i++) {
-                error[i] = predicted[i] - y[i];
-            }
-
-            // Compute the gradient
-            double[] gradient = new double[n];
-            for (int j = 0; j < n; j++) {
-                double sum = 0.0;
-                for (int i = 0; i < m; i++) {
-                    sum += X[i][j] * error[i];
-                }
-                gradient[j] = sum / m;
-            }
-
-            // Update the weights
-            for (int j = 0; j < n; j++) {
-                weights[j] = weights[j] - learningRate * gradient[j];
-            }
-
-            // Compute the cost function
-            double cost = 0.0;
-            for (int i = 0; i < m; i++) {
-                double predictedY = predicted[i];
-                double actualY = y[i];
-                cost += actualY * Math.log(predictedY) + (1 - actualY) * Math.log(1 - predictedY);
-            }
-            cost /= (-1.0 * m);
-
-            // Check if the cost function is below a certain threshold
-            if (cost < 0.0001) {
-                break;
+            for (int j = 0; j < numFeatures; j++) {
+                weights[j] -= learningRate * gradient[j] / numRows;
             }
         }
 
         return weights;
     }
-
     private static double sigmoid(double z) {
         return 1.0 / (1.0 + Math.exp(-z));
     }
 
-    public static void unitVectorNormalize(double[][] X) {
-        int numExamples = X.length;
-        int numFeatures = X[0].length;
-
-        // Compute the magnitude of each row
-        double[] magnitudes = new double[numExamples];
-        for (int i = 0; i < numExamples; i++) {
-            double sumSquares = 0.0;
-            for (int j = 0; j < numFeatures; j++) {
-                double value = X[i][j];
-                sumSquares += value * value;
-            }
-            double magnitude = Math.sqrt(sumSquares);
-            magnitudes[i] = magnitude;
+    private static double predictProbability(double[] x, double[] weights) {
+        double z = 0.0;
+        for (int i = 0; i < x.length; i++) {
+            z += x[i] * weights[i];
         }
+        return sigmoid(z);
+    }
 
-        // Normalize each row in X
-        for (int i = 0; i < numExamples; i++) {
-            double magnitude = magnitudes[i];
-            for (int j = 0; j < numFeatures; j++) {
+    public static double calculateLogLoss(List<Double> predictedProbabilities, double[] actualLabels) {
+        double logLoss = 0.0;
+        for (int i = 0; i < predictedProbabilities.size(); i++) {
+            double p = predictedProbabilities.get(i);
+            double y = actualLabels[i];
+            logLoss += y * Math.log(p) + (1 - y) * Math.log(1 - p);
+        }
+        return -logLoss / predictedProbabilities.size();
+    }
+    
+
+    public static void unitVectorNormalize(double[][] X) {
+        
+        int numFeatures = X[1].length;
+        double[] minValues = new double[numFeatures];
+        double[] maxValues = new double[numFeatures];
+        
+        for (int j = 1; j < numFeatures; j++) {
+            double min = Double.MAX_VALUE;
+            double max = Double.MIN_VALUE;
+            for (int i = 0; i < X.length; i++) {
                 double value = X[i][j];
-                double normalized = value / magnitude;
+                if (value < min) {
+                    min = value;
+                }
+                if (value > max) {
+                    max = value;
+                }
+            }
+            minValues[j] = min;
+            maxValues[j] = max;
+        }
+        
+        // Step 2: Normalize the data
+        for (int i = 0; i < X.length; i++) {
+            for (int j = 1; j < numFeatures; j++) {
+                double value = X[i][j];
+                double range = maxValues[j] - minValues[j];
+                double normalized = (value - minValues[j]) / range;
                 X[i][j] = normalized;
             }
         }
@@ -137,7 +125,6 @@ public class Heart_failure_Test {
         return result;
     }
 
-
     public static void main(String[] args) {
         String filePath4features = "Termproject/logistic/heart_failure_clinical_records_dataset_cleaned.csv";
         /// String filePath_age_serum_sodium =
@@ -151,8 +138,8 @@ public class Heart_failure_Test {
         System.out.println("Reading CSV file: " + filePath4features);
         double[][] x = new double[0][0];
         double[] y = new double[0];
-        double learningRate = 0.1;
-        int numIterations = 1000;
+        double learningRate = 0.001;
+        int numIterations = 100000;
 
         // variables declared ^^^^^
 
@@ -193,12 +180,45 @@ public class Heart_failure_Test {
 
         System.out.println("The Code ran");
 
+        
+        
         unitVectorNormalize(XTrain);
         unitVectorNormalize(XTest);
+        
+        for (int i = 0; i < XTrain.length; i++) {
+            for (int j = 0; j < XTrain[i].length; j++) {
+                //System.out.print(XTrain[i][j] + " ");
+            }
+            //System.out.println();
+        }
+       // System.out.println("xtrain" + XTrain);
+        //System.out.println("ytrain" + yTrain);
 
         System.out.println("Training the model...");
         double[] weights = train(XTrain, yTrain, learningRate, numIterations);
         System.out.println("Weights have been trained: " + Arrays.toString(weights));
+
+        List<Double> predictedTrain = new ArrayList<>();
+for (double[] row : XTrain) {
+    double prediction = predictProbability(row, weights);
+    predictedTrain.add(prediction);
+}
+double trainLogLoss = calculateLogLoss(predictedTrain, yTrain);
+System.out.println("Training log loss: " + trainLogLoss);
+
+// Evaluate the test data
+List<Double> predictedTest = new ArrayList<>();
+for (double[] row : XTest) {
+    double prediction = predictProbability(row, weights); // Use predictProbability instead of dotProduct
+    predictedTest.add(prediction);
+}
+
+// Calculate the log loss for the test set
+double testLogLoss = calculateLogLoss(predictedTest, yTest);
+System.out.println("Test log loss: " + testLogLoss);
+System.out.println("learning rate:"+ learningRate);
+System.out.println("number of iterations:"+ numIterations);
+
 
         if (x.length == 0) {
             System.out.println("No data found in the CSV file.");
